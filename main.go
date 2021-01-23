@@ -55,7 +55,10 @@ func init() {
 }
 
 func main() {
-
+	start()
+	//fmt.Println(os.Getwd())
+}
+func start() {
 	//stockFlag = true
 
 	//cfgPath = "D:\\transfer\\app.yml"
@@ -144,7 +147,6 @@ func main() {
 	service.Close()
 	storage.Close()
 }
-
 func doStock() {
 	stock := service.NewStockService()
 	if err := stock.Run(); err != nil {

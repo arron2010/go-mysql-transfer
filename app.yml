@@ -1,7 +1,7 @@
 # mysql配置
 addr: 127.0.0.1:3306
 user: root
-pass: root
+pass: 12345
 charset : utf8
 slave_id: 1001 #slave ID
 flavor: mysql #mysql or mariadb,默认mysql
@@ -39,7 +39,7 @@ target: redis # 支持redis、mongodb、elasticsearch、rocketmq、kafka、rabbi
 redis_addrs: 127.0.0.1:6379 #redis地址，多个用逗号分隔
 #redis_group_type: cluster   # 集群类型 sentinel或者cluster
 #redis_master_name: mymaster # Master节点名称,如果group_type为sentinel则此项不能为空，为cluster此项无效
-#redis_pass: 123456 #redis密码
+redis_pass: zhongguo #redis密码
 #redis_database: 0  #redis数据库 0-16,默认0。如果group_type为cluster此项无效
 
 #mongodb连接配置
