@@ -45,7 +45,7 @@ func (s *ScriptEndpoint) Ping() error {
 	return nil
 }
 
-func (s *ScriptEndpoint) Consume(from mysql.Position, rows []*model.RowRequest) error {
+func (s *ScriptEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)
 		if rule.TableColumnSize != len(row.Row) {

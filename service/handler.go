@@ -33,14 +33,16 @@ import (
 )
 
 type handler struct {
-	queue chan interface{}
-	stop  chan struct{}
+	queue           chan interface{}
+	stop            chan struct{}
+	transferService *TransferService
 }
 
-func newHandler() *handler {
+func newHandler(t *TransferService) *handler {
 	return &handler{
-		queue: make(chan interface{}, 4096),
-		stop:  make(chan struct{}, 1),
+		queue:           make(chan interface{}, 4096),
+		stop:            make(chan struct{}, 1),
+		transferService: t,
 	}
 }
 
@@ -54,7 +56,7 @@ func (s *handler) OnRotate(e *replication.RotateEvent) error {
 }
 
 func (s *handler) OnTableChanged(schema, table string) error {
-	err := _transferService.updateRule(schema, table)
+	err := s.transferService.updateRule(schema, table)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -81,7 +83,7 @@ func (s *handler) OnXID(nextPos mysql.Position) error {
 
 func (s *handler) OnRow(e *canal.RowsEvent) error {
 	ruleKey := global.RuleKey(e.Table.Schema, e.Table.Name)
-	if !global.RuleInsExist(ruleKey) {
+	if !s.transferService.ruleInsExist(ruleKey) {
 		return nil
 	}
 
@@ -142,12 +144,13 @@ func (s *handler) startListener() {
 		lastSavedTime := time.Now()
 		requests := make([]*model.RowRequest, 0, bulkSize)
 		var current mysql.Position
-		from, _ := _transferService.positionDao.Get()
+		from, _ := s.transferService.Position()
 		for {
 			needFlush := false
 			needSavePos := false
 			select {
 			case v := <-s.queue:
+				//global.PrintEx("handler startListener-->queue-->153-->",v)
 				switch v := v.(type) {
 				case model.PosRequest:
 					now := time.Now()
@@ -160,9 +163,12 @@ func (s *handler) startListener() {
 							Pos:  v.Pos,
 						}
 					}
+					global.PrintEx("handler startListener-->model.PosRequest-->166-->", v)
+
 				case []*model.RowRequest:
 					requests = append(requests, v...)
 					needFlush = int64(len(requests)) >= global.Cfg().BulkSize
+					global.PrintEx("handler startListener-->model.RowRequest-->171-->", v)
 				}
 			case <-ticker.C:
 				needFlush = true
@@ -170,21 +176,22 @@ func (s *handler) startListener() {
 				return
 			}
 
-			if needFlush && len(requests) > 0 && _transferService.endpointEnable.Load() {
-				err := _transferService.endpoint.Consume(from, requests)
+			if needFlush && len(requests) > 0 && s.transferService.endpointEnable.Load() {
+
+				err := s.transferService.endpoint.Consume(s.transferService.Name, from, requests)
 				if err != nil {
-					_transferService.endpointEnable.Store(false)
+					s.transferService.endpointEnable.Store(false)
 					metrics.SetDestState(metrics.DestStateFail)
 					logs.Error(err.Error())
-					go _transferService.stopDump()
+					go s.transferService.stopDump()
 				}
 				requests = requests[0:0]
 			}
-			if needSavePos && _transferService.endpointEnable.Load() {
+			if needSavePos && s.transferService.endpointEnable.Load() {
 				logs.Infof("save position %s %d", current.Name, current.Pos)
-				if err := _transferService.positionDao.Save(current); err != nil {
+				if err := s.transferService.SavePosition(current); err != nil {
 					logs.Errorf("save sync position %s err %v, close sync", current, err)
-					_transferService.Close()
+					s.transferService.Close()
 					return
 				}
 				from = current

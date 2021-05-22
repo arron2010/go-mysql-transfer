@@ -183,7 +183,7 @@ func (s *Elastic6Endpoint) Ping() error {
 	return errors.New("ssx")
 }
 
-func (s *Elastic6Endpoint) Consume(from mysql.Position, rows []*model.RowRequest) error {
+func (s *Elastic6Endpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
 	bulk := s.client.Bulk()
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)
@@ -214,7 +214,7 @@ func (s *Elastic6Endpoint) Consume(from mysql.Position, rows []*model.RowRequest
 		}
 	}
 
-	if bulk.NumberOfActions()==0{
+	if bulk.NumberOfActions() == 0 {
 		return nil
 	}
 

@@ -137,7 +137,7 @@ func start() {
 		return
 	}
 	service.StartUp() // start application
-
+	//log.Printf("service start suceessfully...... ")
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Kill, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	sin := <-s

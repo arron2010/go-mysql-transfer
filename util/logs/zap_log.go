@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -58,6 +59,8 @@ func NewZapLogger(config *Config, options ...zap.Option) (*zap.Logger, io.Writer
 		Compress:  config.Compress, // 是否压缩
 		LocalTime: true,
 	}
+	fileWriter := zapcore.AddSync(&hook)
+	w := zapcore.NewMultiWriteSyncer(fileWriter, os.Stdout)
 
 	encoderConfig := newEncoderConfig()
 	var encoder zapcore.Encoder
@@ -68,9 +71,10 @@ func NewZapLogger(config *Config, options ...zap.Option) (*zap.Logger, io.Writer
 	}
 	core := zapcore.NewCore(
 		encoder,
-		zapcore.AddSync(&hook),
+		w,
 		getZapLevel(config.Level),
 	)
+
 	return zap.New(core), &hook, nil
 }
 

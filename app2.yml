@@ -7,7 +7,7 @@ slave_id: 1001 #slave ID
 flavor: mysql #mysql or mariadb,默认mysql
 
 #系统相关配置
-#data_dir: D:\\transfer #应用产生的数据存放地址，包括日志、缓存数据等，默认当前运行目录下store文件夹
+data_dir: /opt/gopath/src/github.com/wj596/go-mysql-transfer/web/store2 #应用产生的数据存放地址，包括日志、缓存数据等，默认当前运行目录下store文件夹
 #logger:
 #  level: info #日志级别；支持：debug|info|warn|error，默认info
 
@@ -20,11 +20,11 @@ flavor: mysql #mysql or mariadb,默认mysql
 
 #web admin相关配置
 enable_web_admin: true #是否启用web admin，默认false
-web_admin_port: 8060 #web监控端口,默认8060
+web_admin_port: 8061 #web监控端口,默认8060
 
 cluster: # 集群相关配置
   name: myTransfer #集群名称，具有相同name的节点放入同一个集群
-  bind_ip: 127.0.0.1 # 绑定的IP,如果机器有多张网卡(包含虚拟网卡)会有多个IP，使用这个属性绑定一个
+  #bind_ip: 127.0.0.1 # 绑定的IP,如果机器有多张网卡(包含虚拟网卡)会有多个IP，使用这个属性绑定一个
   #ZooKeeper地址，多个用逗号风格
   #zk_addrs: 192.168.1.10:2181,192.168.1.11:2182,192.168.1.12:2183
   #zk_authentication: 123456 #digest类型的访问秘钥，如：user:password，默认为空
@@ -70,7 +70,7 @@ redis_pass: zhongguo #redis密码
 
 #规则配置
 rule:
- -
+  -
     schema: eseap #数据库名称
     table: t_user #表名称
     #order_by_column: id #排序字段，存量数据同步时不能为空
@@ -127,30 +127,3 @@ rule:
     #rabbitmq_queue: user_topic #queue名称,可以为空，默认使用表(Table)名称
 
     #reserve_raw_data: true #保留update之前的数据，针对rocketmq、kafka、rabbitmq有用;默认为false
-servers:
-  -
-    server_name: test1
-    server_addr: 127.0.0.1:3306
-    server_user: root
-    server_pass: 12345
-    server_charset: utf8
-    server_slave_id: 1001
-    db_file_position: mysql-bin.000001
-    rule:
-      -
-        schema: eseap #数据库名称
-        table: t_user #表名称
-        column_underscore_to_camel: true #列名称下划线转驼峰,默认为false
-  -
-    server_name: test2
-    server_addr: rm-2ze634l8642j077f8.mysql.rds.aliyuncs.com:3306
-    server_user: uat_paydb
-    server_pass: BJtydic_456
-    server_charset: utf8
-    server_slave_id: 1002
-    db_file_position: mysql-bin.003100
-    rule:
-      -
-        schema: uat_paydb #数据库名称
-        table: t_user #表名称
-        column_underscore_to_camel: true #列名称下划线转驼峰,默认为false

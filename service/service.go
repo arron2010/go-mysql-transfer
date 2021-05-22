@@ -19,33 +19,36 @@ package service
 
 import (
 	"go-mysql-transfer/global"
-	"go-mysql-transfer/service/election"
 )
 
 var (
 	_transferService *TransferService
-	_electionService election.Service
-	_clusterService  *ClusterService
+	//_electionService election.Service
+	_clusterService *ClusterService
 )
 
 func Initialize() error {
-	transferService := &TransferService{
-		loopStopSignal: make(chan struct{}, 1),
-	}
-	err := transferService.initialize()
-	if err != nil {
-		return err
-	}
-	_transferService = transferService
+	var err error
 
 	if global.Cfg().IsCluster() {
-		_clusterService = &ClusterService{
-			electionSignal: make(chan bool, 1),
+
+		//_clusterService = &ClusterService{
+		//	electionSignal: make(chan bool, 1),
+		//}
+		//_clusterService.electionService = election.NewElection(_clusterService.electionSignal)
+		_clusterService, err = newClusterService(global.Cfg())
+	} else {
+		transferService := &TransferService{
+			loopStopSignal: make(chan struct{}, 1),
 		}
-		_electionService = election.NewElection(_clusterService.electionSignal)
+		err := transferService.initialize()
+		if err != nil {
+			return err
+		}
+		_transferService = transferService
 	}
 
-	return nil
+	return err
 }
 
 func StartUp() {
@@ -57,7 +60,11 @@ func StartUp() {
 }
 
 func Close() {
-	_transferService.Close()
+	if global.Cfg().IsCluster() {
+		_clusterService.Close()
+	} else {
+		_transferService.Close()
+	}
 }
 
 func TransferServiceIns() *TransferService {

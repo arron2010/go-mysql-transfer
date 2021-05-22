@@ -49,21 +49,35 @@ type TransferService struct {
 	wg             sync.WaitGroup
 	endpoint       endpoint.Endpoint
 	endpointEnable atomic.Bool
-	positionDao    storage.PositionStorage
+	positionDao    storage.PositionStorageEx
 	loopStopSignal chan struct{}
+
+	ruleConfigs []*global.Rule
+	ruleMap     *global.RuleMap
+	Name        string
 }
 
-func (s *TransferService) initialize() error {
+func newTransferService(config *global.ServerConfig) *TransferService {
+	s := &TransferService{}
+	s.loopStopSignal = make(chan struct{}, 1)
 	s.canalCfg = canal.NewDefaultConfig()
-	s.canalCfg.Addr = global.Cfg().Addr
-	s.canalCfg.User = global.Cfg().User
-	s.canalCfg.Password = global.Cfg().Password
-	s.canalCfg.Charset = global.Cfg().Charset
-	s.canalCfg.Flavor = global.Cfg().Flavor
-	s.canalCfg.ServerID = global.Cfg().SlaveID
-	s.canalCfg.Dump.ExecutionPath = global.Cfg().DumpExec
+
+	s.canalCfg = canal.NewDefaultConfig()
+	s.canalCfg.Addr = config.Addr
+	s.canalCfg.User = config.User
+	s.canalCfg.Password = config.Password
+	s.canalCfg.Charset = config.Charset
+	s.canalCfg.ServerID = config.SlaveID
+	s.canalCfg.Flavor = "mysql" //目前仅支持MySQL
 	s.canalCfg.Dump.DiscardErr = false
-	s.canalCfg.Dump.SkipMasterData = global.Cfg().SkipMasterData
+	s.canalCfg.Dump.SkipMasterData = false
+	s.ruleConfigs = config.RuleConfigs
+	s.Name = config.Name
+	s.ruleMap = global.NewRuleMap()
+
+	return s
+}
+func (s *TransferService) initialize() error {
 
 	if err := s.createCanal(); err != nil {
 		return errors.Trace(err)
@@ -73,13 +87,8 @@ func (s *TransferService) initialize() error {
 		return errors.Trace(err)
 	}
 
-	s.addDumpDatabaseOrTable()
-
-	positionDao := storage.NewPositionStorage()
-	if err := positionDao.Initialize(); err != nil {
-		return errors.Trace(err)
-	}
-	s.positionDao = positionDao
+	//暂时不考虑dump情况
+	//s.addDumpDatabaseOrTable()
 
 	// endpoint
 	endpoint := endpoint.NewEndpoint(s.canal)
@@ -95,6 +104,7 @@ func (s *TransferService) initialize() error {
 	}
 	s.endpoint = endpoint
 	s.endpointEnable.Store(true)
+
 	metrics.SetDestState(metrics.DestStateOK)
 
 	s.firstsStart.Store(true)
@@ -104,7 +114,7 @@ func (s *TransferService) initialize() error {
 }
 
 func (s *TransferService) run() error {
-	current, err := s.positionDao.Get()
+	current, err := s.Position()
 	if err != nil {
 		return err
 	}
@@ -114,8 +124,8 @@ func (s *TransferService) run() error {
 		s.canalEnable.Store(true)
 		log.Println(fmt.Sprintf("transfer run from position(%s %d)", p.Name, p.Pos))
 		if err := s.canal.RunFrom(p); err != nil {
-			log.Println(fmt.Sprintf("start transfer : %v", err))
-			logs.Errorf("canal : %v", errors.ErrorStack(err))
+			log.Println(fmt.Sprintf("start transfer: %s  %v", s.Name, err))
+			logs.Errorf("transfer : %s  canal : %v", s.Name, errors.ErrorStack(err))
 			if s.canalHandler != nil {
 				s.canalHandler.stopListener()
 			}
@@ -138,7 +148,7 @@ func (s *TransferService) StartUp() {
 	defer s.lockOfCanal.Unlock()
 
 	if s.firstsStart.Load() {
-		s.canalHandler = newHandler()
+		s.canalHandler = newHandler(s)
 		s.canal.SetEventHandler(s.canalHandler)
 		s.canalHandler.startListener()
 		s.firstsStart.Store(false)
@@ -156,7 +166,7 @@ func (s *TransferService) restart() {
 
 	s.createCanal()
 	s.addDumpDatabaseOrTable()
-	s.canalHandler = newHandler()
+	s.canalHandler = newHandler(s)
 	s.canal.SetEventHandler(s.canalHandler)
 	s.canalHandler.startListener()
 	s.run()
@@ -191,11 +201,17 @@ func (s *TransferService) Close() {
 }
 
 func (s *TransferService) Position() (mysql.Position, error) {
-	return s.positionDao.Get()
+	return s.positionDao.Get(s.Name)
+}
+func (s *TransferService) SavePosition(pos mysql.Position) error {
+	return s.positionDao.Save(s.Name, pos)
 }
 
+func (s *TransferService) ruleInsExist(ruleKey string) bool {
+	return s.ruleMap.RuleInsExist(ruleKey)
+}
 func (s *TransferService) createCanal() error {
-	for _, rc := range global.Cfg().RuleConfigs {
+	for _, rc := range s.ruleConfigs {
 		s.canalCfg.IncludeTableRegex = append(s.canalCfg.IncludeTableRegex, rc.Schema+"\\."+rc.Table)
 	}
 	var err error
@@ -204,16 +220,16 @@ func (s *TransferService) createCanal() error {
 }
 
 func (s *TransferService) completeRules() error {
-	wildcards := make(map[string]bool)
-	for _, rc := range global.Cfg().RuleConfigs {
+	//wildcards := make(map[string]bool)
+	for _, rc := range s.ruleConfigs {
 		if rc.Table == "*" {
 			return errors.Errorf("wildcard * is not allowed for table name")
 		}
-
-		if regexp.QuoteMeta(rc.Table) != rc.Table { //通配符
-			if _, ok := wildcards[global.RuleKey(rc.Schema, rc.Schema)]; ok {
-				return errors.Errorf("duplicate wildcard table defined for %s.%s", rc.Schema, rc.Table)
-			}
+		tbl := regexp.QuoteMeta(rc.Table)
+		if tbl != rc.Table { //通配符
+			//if _, ok := wildcards[global.RuleKey(rc.Schema, rc.Schema)]; ok {
+			//	return errors.Errorf("duplicate wildcard table defined for %s.%s", rc.Schema, rc.Table)
+			//}
 
 			tableName := rc.Table
 			if rc.Table == "*" {
@@ -233,7 +249,8 @@ func (s *TransferService) completeRules() error {
 				}
 				newRule.Table = tableName
 				ruleKey := global.RuleKey(rc.Schema, tableName)
-				global.AddRuleIns(ruleKey, newRule)
+				s.ruleMap.AddRuleIns(ruleKey, newRule)
+				//global.AddRuleIns(ruleKey, newRule)
 			}
 		} else {
 			newRule, err := global.RuleDeepClone(rc)
@@ -241,11 +258,11 @@ func (s *TransferService) completeRules() error {
 				return errors.Trace(err)
 			}
 			ruleKey := global.RuleKey(rc.Schema, rc.Table)
-			global.AddRuleIns(ruleKey, newRule)
+			s.ruleMap.AddRuleIns(ruleKey, newRule)
 		}
 	}
-
-	for _, rule := range global.RuleInsList() {
+	ruleInsList := s.ruleMap.RuleInsList()
+	for _, rule := range ruleInsList {
 		tableMata, err := s.canal.GetTable(rule.Schema, rule.Table)
 		if err != nil {
 			return errors.Trace(err)
@@ -296,7 +313,7 @@ func (s *TransferService) addDumpDatabaseOrTable() {
 }
 
 func (s *TransferService) updateRule(schema, table string) error {
-	rule, ok := global.RuleIns(global.RuleKey(schema, table))
+	rule, ok := s.ruleMap.RuleIns(global.RuleKey(schema, table))
 	if ok {
 		tableInfo, err := s.canal.GetTable(schema, table)
 		if err != nil {

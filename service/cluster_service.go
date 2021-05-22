@@ -18,19 +18,57 @@
 package service
 
 import (
-	"log"
+	"github.com/juju/errors"
+	"go-mysql-transfer/service/election"
+	"go-mysql-transfer/storage"
+	"go-mysql-transfer/util/logs"
 
 	"go-mysql-transfer/global"
 	"go-mysql-transfer/metrics"
 )
 
 type ClusterService struct {
-	electionSignal chan bool //选举信号
+	electionSignal   chan bool //选举信号
+	electionService  election.Service
+	transferServices []*TransferService
+}
+
+func (s *ClusterService) Nodes() []string {
+	return s.electionService.Nodes()
+}
+
+func newClusterService(config *global.Config) (*ClusterService, error) {
+	var err error
+	var positionDao storage.PositionStorageEx
+
+	electionSignal := make(chan bool, 1)
+	clusterService := &ClusterService{
+		electionSignal:   electionSignal,
+		electionService:  election.NewElection(electionSignal),
+		transferServices: make([]*TransferService, 0, 8),
+	}
+	positionDao = storage.NewPositionStorageEx()
+	//names := global.Cfg().GetServerNames()
+	if err := positionDao.Initialize(); err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	for i := 0; i < len(config.ServerConfigs); i++ {
+		t := newTransferService(config.ServerConfigs[i])
+		t.positionDao = positionDao
+		clusterService.transferServices = append(clusterService.transferServices, t)
+		err = t.initialize()
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+	}
+
+	return clusterService, err
 }
 
 func (s *ClusterService) boot() error {
-	log.Println("start master election")
-	err := _electionService.Elect()
+	//log.Println("start master election")
+	err := s.electionService.Elect()
 	if err != nil {
 		return err
 	}
@@ -45,14 +83,15 @@ func (s *ClusterService) startElectListener() {
 		for {
 			select {
 			case selected := <-s.electionSignal:
-				global.SetLeaderNode(_electionService.Leader())
+				global.PrintEx("startElectListener-->selected-->", selected)
+				global.SetLeaderNode(s.electionService.Leader())
 				global.SetLeaderFlag(selected)
 				if selected {
 					metrics.SetLeaderState(metrics.LeaderState)
-					_transferService.StartUp()
+					s.startService()
 				} else {
 					metrics.SetLeaderState(metrics.FollowerState)
-					_transferService.stopDump()
+					s.stopService()
 				}
 			}
 		}
@@ -60,6 +99,21 @@ func (s *ClusterService) startElectListener() {
 	}()
 }
 
-func (s *ClusterService) Nodes() []string {
-	return _electionService.Nodes()
+func (s *ClusterService) startService() {
+	for i := 0; i < len(s.transferServices); i++ {
+		s.transferServices[i].StartUp()
+		logs.Infof("启动同步服务:%s\r\n", s.transferServices[i].Name)
+	}
+}
+
+func (s *ClusterService) stopService() {
+	for i := 0; i < len(s.transferServices); i++ {
+		s.transferServices[i].stopDump()
+	}
+}
+
+func (s *ClusterService) Close() {
+	for i := 0; i < len(s.transferServices); i++ {
+		s.transferServices[i].Close()
+	}
 }

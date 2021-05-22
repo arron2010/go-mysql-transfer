@@ -42,6 +42,7 @@ const (
 	_targetKafka         = "KAFKA"
 	_targetElasticsearch = "ELASTICSEARCH"
 	_targetScript        = "SCRIPT"
+	_targetMyMQ          = "MYMQ"
 
 	RedisGroupTypeSentinel = "sentinel"
 	RedisGroupTypeCluster  = "cluster"
@@ -66,6 +67,8 @@ type Config struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"pass"`
 	Charset  string `yaml:"charset"`
+
+	ServerConfigs []*ServerConfig `yaml:"servers"` // 监听服务器列表
 
 	SlaveID uint32 `yaml:"slave_id"`
 	Flavor  string `yaml:"flavor"`
@@ -139,6 +142,17 @@ type Cluster struct {
 	EtcdPassword     string `yaml:"etcd_password"`
 }
 
+type ServerConfig struct {
+	Name        string  `yaml:"server_name"`
+	Addr        string  `yaml:"server_addr"`
+	User        string  `yaml:"server_user"`
+	Password    string  `yaml:"server_pass"`
+	Charset     string  `yaml:"server_charset"`
+	SlaveID     uint32  `yaml:"server_slave_id"`
+	Position    string  `yaml:"db_file_position"`
+	RuleConfigs []*Rule `yaml:"rule"`
+}
+
 func initConfig(fileName string) error {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -185,6 +199,7 @@ func initConfig(fileName string) error {
 			return errors.Trace(err)
 		}
 	case _targetScript:
+	case _targetMyMQ:
 
 	default:
 		return errors.Errorf("unsupported target: %s", c.Target)
@@ -453,6 +468,10 @@ func (c *Config) IsExporterEnable() bool {
 	return c.EnableExporter
 }
 
+func (c *Config) IsMyMQ() bool {
+	return strings.ToUpper(c.Target) == _targetMyMQ
+}
+
 func (c *Config) IsReserveRawData() bool {
 	return c.isReserveRawData
 }
@@ -554,4 +573,15 @@ func (c *Config) ZkElectedDir() string {
 
 func (c *Config) ZkNodesDir() string {
 	return _zkRootDir + "/" + c.Cluster.Name + "/nodes"
+}
+
+func (c *Config) GetServerNames() []string {
+	names := make([]string, 0, len(c.ServerConfigs))
+	for i := 0; i < len(c.ServerConfigs); i++ {
+		names = append(names, c.ServerConfigs[i].Name)
+	}
+	return names
+}
+func PrintEx(a ...interface{}) {
+	fmt.Println(a...)
 }

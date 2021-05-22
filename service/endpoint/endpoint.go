@@ -42,7 +42,7 @@ const defaultDateFormatter = "2006-01-02"
 type Endpoint interface {
 	Connect() error
 	Ping() error
-	Consume(mysql.Position, []*model.RowRequest) error
+	Consume(string, mysql.Position, []*model.RowRequest) error
 	Stock([]*model.RowRequest) int64
 	Close()
 }
@@ -50,6 +50,9 @@ type Endpoint interface {
 func NewEndpoint(ds *canal.Canal) Endpoint {
 	cfg := global.Cfg()
 	luaengine.InitActuator(ds)
+	if cfg.IsMyMQ() {
+		return newMyMQEndpoint()
+	}
 
 	if cfg.IsRedis() {
 		return newRedisEndpoint()

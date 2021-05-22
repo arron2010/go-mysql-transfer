@@ -79,8 +79,10 @@ func (s *etcdElection) doElect() {
 			select {
 			case <-session.Done():
 				s.beFollower("")
+				global.PrintEx("doElect-->session.Done--> follower")
 				continue
 			default:
+				global.PrintEx("doElect-->select default--> leader")
 				s.beLeader()
 				err = etcds.UpdateOrCreate(global.Cfg().ZkElectedDir(), elc.Key(), storage.EtcdOps())
 				if err != nil {
@@ -93,6 +95,7 @@ func (s *etcdElection) doElect() {
 			for !shouldBreak {
 				select {
 				case <-session.Done():
+					global.PrintEx("doElect-->shouldBreak session.Done--> leader")
 					logs.Warn("etcd session has done")
 					shouldBreak = true
 					s.beFollower("")
