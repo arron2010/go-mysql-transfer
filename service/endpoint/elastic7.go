@@ -179,7 +179,7 @@ func (s *Elastic7Endpoint) Ping() error {
 	return errors.New("ssx")
 }
 
-func (s *Elastic7Endpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
+func (s *Elastic7Endpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest, ruleMap *global.RuleMap) error {
 	bulk := s.client.Bulk()
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)

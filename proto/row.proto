@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package proto;
+
+message ColumnValue{
+	bytes Val = 1;
+}
+
+message ColumnInfo{
+	string Name        =1;
+	uint32 Type        =2;
+	string Collation   =3;
+	string RawType    =4;
+	uint32 IsAuto     =5;
+	uint32 IsUnsigned =6;
+	uint32 IsVirtual  =7;
+	uint32 FixedSize =8;
+	uint32 MaxSize    =9;
+}
+
+message Row{
+	string Server = 1;
+	string DB = 2;
+	string Table  = 3;
+	bytes Val = 4;
+	repeated ColumnInfo Columns = 5;
+	repeated uint32 PKColumns = 6;
+	string Action = 7;
+	uint64 Timestamp = 8;
+	bytes ColumnBitmap1 =9;
+	bytes ColumnBitmap2 =10;
+	bytes ColumnType =11;
+	repeated uint32 ColumnMeta= 12;
+	uint32 NeedBitmap2 =13;
+
+}
+
+message RowMessage{
+	repeated Row Rows= 1;
+}
+
+
+

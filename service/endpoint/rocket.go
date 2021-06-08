@@ -86,7 +86,7 @@ func (s *RocketEndpoint) Ping() error {
 	return err
 }
 
-func (s *RocketEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
+func (s *RocketEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest, ruleMap *global.RuleMap) error {
 	var ms []*primitive.Message
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)

@@ -19,18 +19,18 @@ package service
 
 import (
 	"github.com/juju/errors"
+	"go-mysql-transfer/global"
+	"go-mysql-transfer/metrics"
 	"go-mysql-transfer/service/election"
 	"go-mysql-transfer/storage"
 	"go-mysql-transfer/util/logs"
-
-	"go-mysql-transfer/global"
-	"go-mysql-transfer/metrics"
 )
 
 type ClusterService struct {
 	electionSignal   chan bool //选举信号
 	electionService  election.Service
 	transferServices []*TransferService
+	config_          *global.Config
 }
 
 func (s *ClusterService) Nodes() []string {
@@ -42,11 +42,14 @@ func newClusterService(config *global.Config) (*ClusterService, error) {
 	var positionDao storage.PositionStorageEx
 
 	electionSignal := make(chan bool, 1)
+
 	clusterService := &ClusterService{
 		electionSignal:   electionSignal,
 		electionService:  election.NewElection(electionSignal),
 		transferServices: make([]*TransferService, 0, 8),
 	}
+	clusterService.config_ = config
+
 	positionDao = storage.NewPositionStorageEx()
 	//names := global.Cfg().GetServerNames()
 	if err := positionDao.Initialize(); err != nil {
@@ -68,9 +71,14 @@ func newClusterService(config *global.Config) (*ClusterService, error) {
 
 func (s *ClusterService) boot() error {
 	//log.Println("start master election")
-	err := s.electionService.Elect()
-	if err != nil {
-		return err
+	//if s.config_.ServerConfigs
+	if s.electionService.IsCluster() {
+		err := s.electionService.Elect()
+		if err != nil {
+			return err
+		}
+	} else {
+		s.electionSignal <- true
 	}
 
 	s.startElectListener()

@@ -827,6 +827,8 @@ type RowsEvent struct {
 	tables      map[uint64]*TableMapEvent
 	needBitmap2 bool
 
+	NeedBitmap2 bool
+
 	Table *TableMapEvent
 
 	TableID uint64
@@ -852,10 +854,18 @@ type RowsEvent struct {
 	timestampStringLocation *time.Location
 	useDecimal              bool
 	ignoreJSONDecodeErr     bool
+	Raw []byte
+
 }
+
+//用来标记是否需要解码
+const needDecode = false
 
 func (e *RowsEvent) Decode(data []byte) error {
 	pos := 0
+	//初始化原始数据集合
+	//e.Raw = make(map[int][]byte,8)
+
 	e.TableID = FixedLengthInt(data[0:e.tableIDSize])
 	pos += e.tableIDSize
 
@@ -907,19 +917,25 @@ func (e *RowsEvent) Decode(data []byte) error {
 	if e.needBitmap2 {
 		rowsLen += e.ColumnCount
 	}
-	e.Rows = make([][]interface{}, 0, rowsLen)
 
-	for pos < len(data) {
-		if n, err = e.decodeRows(data[pos:], e.Table, e.ColumnBitmap1); err != nil {
-			return errors.Trace(err)
-		}
-		pos += n
+	//arron added 公开访问范围
+	e.NeedBitmap2= e.needBitmap2
+	e.Raw = data[pos:]
 
-		if e.needBitmap2 {
-			if n, err = e.decodeRows(data[pos:], e.Table, e.ColumnBitmap2); err != nil {
+	if needDecode{
+		e.Rows = make([][]interface{}, 0, rowsLen)
+		for pos < len(data) {
+			if n, err = e.decodeRows(data[pos:], e.Table, e.ColumnBitmap1); err != nil {
 				return errors.Trace(err)
 			}
 			pos += n
+
+			if e.needBitmap2 {
+				if n, err = e.decodeRows(data[pos:], e.Table, e.ColumnBitmap2); err != nil {
+					return errors.Trace(err)
+				}
+				pos += n
+			}
 		}
 	}
 
@@ -930,6 +946,9 @@ func isBitSet(bitmap []byte, i int) bool {
 	return bitmap[i>>3]&(1<<(uint(i)&7)) > 0
 }
 
+func (e *RowsEvent)DecodeRows(data []byte, table *TableMapEvent, bitmap []byte)(int, error){
+	return e.decodeRows(data,table,bitmap)
+}
 func (e *RowsEvent) decodeRows(data []byte, table *TableMapEvent, bitmap []byte) (int, error) {
 	row := make([]interface{}, e.ColumnCount)
 
@@ -973,6 +992,7 @@ func (e *RowsEvent) decodeRows(data []byte, table *TableMapEvent, bitmap []byte)
 	}
 
 	e.Rows = append(e.Rows, row)
+
 	return pos, nil
 }
 

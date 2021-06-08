@@ -15,13 +15,18 @@ func onClientTest() {
 	conn.Ping()
 	id := uint32(rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(10000))
 	// Insert
-	r, _ := conn.Execute(fmt.Sprintf(`insert into t_user values (%d, "AAA","BBB")`, id))
+	r, _ := conn.Execute(fmt.Sprintf(`insert into t_user values (%d, "AAA","BBB",10,9.85,"2020-09-24 23:33:20")`, id))
 
+	//r, err:= conn.Execute(fmt.Sprintf(`delete from t_user where  id=%d`, id))
 	//r, _ := conn.Execute(`insert into t_user values (NULL, "AA2","BB2")`)
 	//r, _ := conn.Execute(`update t_user set name="AAA5" where id=1`)
 	// Get last insert id
-	println(r.InsertId)
+	//println(r.InsertId)
 	// Or affected rows count
+	//if err != nil{
+	//	fmt.Println(err)
+	//}
+
 	println(r.AffectedRows)
 
 	defer r.Close()
@@ -48,6 +53,6 @@ func onClientTest2() {
 }
 
 func main() {
-	onClientTest2()
+	//onClientTest2()
 	onClientTest()
 }

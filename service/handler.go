@@ -88,6 +88,29 @@ func (s *handler) OnRow(e *canal.RowsEvent) error {
 	}
 
 	var requests []*model.RowRequest
+	raw := e.ReplicationRowsEvent.Raw
+	requests = make([]*model.RowRequest, 1, 1)
+
+	r := &model.RowRequest{}
+	r.RuleKey = ruleKey
+	r.Action = e.Action
+	r.Timestamp = e.Header.Timestamp
+	r.Raw = raw
+	r.ReplicationRowsEvent = e.ReplicationRowsEvent
+	requests[0] = r
+
+	s.queue <- requests
+
+	return nil
+}
+
+func (s *handler) OnRow2(e *canal.RowsEvent) error {
+	ruleKey := global.RuleKey(e.Table.Schema, e.Table.Name)
+	if !s.transferService.ruleInsExist(ruleKey) {
+		return nil
+	}
+
+	var requests []*model.RowRequest
 	if e.Action != canal.UpdateAction {
 		// 定长分配
 		requests = make([]*model.RowRequest, 0, len(e.Rows))
@@ -178,7 +201,7 @@ func (s *handler) startListener() {
 
 			if needFlush && len(requests) > 0 && s.transferService.endpointEnable.Load() {
 
-				err := s.transferService.endpoint.Consume(s.transferService.Name, from, requests)
+				err := s.transferService.endpoint.Consume(s.transferService.Name, from, requests, s.transferService.ruleMap)
 				if err != nil {
 					s.transferService.endpointEnable.Store(false)
 					metrics.SetDestState(metrics.DestStateFail)

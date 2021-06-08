@@ -128,6 +128,9 @@ type Config struct {
 	ElsPassword string `yaml:"es_password"` //Elasticsearch密码
 	ElsVersion  int    `yaml:"es_version"`  //Elasticsearch版本，支持6和7、默认为7
 
+	MQAddr     string `yaml:"mq_addrs"`
+	MQPoolSize int    `yaml:"mq_pool_size"`
+
 	isReserveRawData bool //保留原始数据
 	isMQ             bool //是否消息队列
 }

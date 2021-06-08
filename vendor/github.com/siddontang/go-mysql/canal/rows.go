@@ -26,6 +26,10 @@ type RowsEvent struct {
 	Rows [][]interface{}
 	// Header can be used to inspect the event
 	Header *replication.EventHeader
+
+	ReplicationRowsEvent *replication.RowsEvent
+	//行记录的原始数据
+	//Raw map[int][]byte
 }
 
 func newRowsEvent(table *schema.Table, action string, rows [][]interface{}, header *replication.EventHeader) *RowsEvent {

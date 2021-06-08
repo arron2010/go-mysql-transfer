@@ -365,7 +365,7 @@ func (p *BinlogParser) newRowsEvent(h *EventHeader) *RowsEvent {
 	} else {
 		e.tableIDSize = 6
 	}
-
+	
 	e.needBitmap2 = false
 	e.tables = p.tables
 	e.parseTime = p.parseTime

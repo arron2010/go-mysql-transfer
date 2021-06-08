@@ -22,6 +22,9 @@ flavor: mysql #mysql or mariadb,默认mysql
 enable_web_admin: true #是否启用web admin，默认false
 web_admin_port: 8060 #web监控端口,默认8060
 
+mq_addrs: 127.0.0.1:8081
+mq_pool_size: 100
+
 cluster: # 集群相关配置
   name: myTransfer #集群名称，具有相同name的节点放入同一个集群
   bind_ip: 127.0.0.1 # 绑定的IP,如果机器有多张网卡(包含虚拟网卡)会有多个IP，使用这个属性绑定一个
@@ -135,22 +138,9 @@ servers:
     server_pass: 12345
     server_charset: utf8
     server_slave_id: 1001
-    db_file_position: mysql-bin.000001
+    db_file_position: mysql-bin.000009
     rule:
       -
         schema: eseap #数据库名称
-        table: t_user #表名称
-        column_underscore_to_camel: true #列名称下划线转驼峰,默认为false
-  -
-    server_name: test2
-    server_addr: rm-2ze634l8642j077f8.mysql.rds.aliyuncs.com:3306
-    server_user: uat_paydb
-    server_pass: BJtydic_456
-    server_charset: utf8
-    server_slave_id: 1002
-    db_file_position: mysql-bin.003100
-    rule:
-      -
-        schema: uat_paydb #数据库名称
         table: t_user #表名称
         column_underscore_to_camel: true #列名称下划线转驼峰,默认为false

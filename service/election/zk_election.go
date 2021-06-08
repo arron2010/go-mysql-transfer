@@ -46,6 +46,9 @@ func newZkElection(_informCh chan bool) *zkElection {
 		informCh: _informCh,
 	}
 }
+func (s *zkElection) IsCluster() bool {
+	return true
+}
 
 func (s *zkElection) Elect() error {
 	data := []byte(global.CurrentNode())

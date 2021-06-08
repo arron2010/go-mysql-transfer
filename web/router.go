@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"go-mysql-transfer/service"
 	"go-mysql-transfer/util/dates"
@@ -130,7 +131,7 @@ func Close() {
 		return
 	}
 
-	err := _server.Shutdown(nil)
+	err := _server.Shutdown(context.Background())
 	if err != nil {
 		log.Println(err.Error())
 	}

@@ -80,7 +80,7 @@ func (s *KafkaEndpoint) Ping() error {
 	return s.client.RefreshMetadata()
 }
 
-func (s *KafkaEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
+func (s *KafkaEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest, ruleMap *global.RuleMap) error {
 	var ms []*sarama.ProducerMessage
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)

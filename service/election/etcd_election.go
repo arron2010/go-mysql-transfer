@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -41,15 +42,24 @@ type etcdElection struct {
 
 	informCh chan bool
 
-	selected atomic.Bool
-	ensured  atomic.Bool
-	leader   atomic.String
+	selected  atomic.Bool
+	ensured   atomic.Bool
+	leader    atomic.String
+	endpoints []string
 }
 
 func newEtcdElection(_informCh chan bool) *etcdElection {
+	_endpoints := strings.Split(global.Cfg().Cluster.EtcdAddrs, ",")
 	return &etcdElection{
-		informCh: _informCh,
+		informCh:  _informCh,
+		endpoints: _endpoints,
 	}
+}
+func (s *etcdElection) IsCluster() bool {
+	if len(s.endpoints) == 1 {
+		return false
+	}
+	return true
 }
 
 func (s *etcdElection) Elect() error {

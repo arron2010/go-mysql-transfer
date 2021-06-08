@@ -1,6 +1,9 @@
 package model
 
-import "sync"
+import (
+	"github.com/siddontang/go-mysql/replication"
+	"sync"
+)
 
 var RowRequestPool = sync.Pool{
 	New: func() interface{} {
@@ -9,11 +12,13 @@ var RowRequestPool = sync.Pool{
 }
 
 type RowRequest struct {
-	RuleKey   string
-	Action    string
-	Timestamp uint32
-	Old       []interface{}
-	Row       []interface{}
+	RuleKey              string
+	Action               string
+	Timestamp            uint32
+	Old                  []interface{}
+	Row                  []interface{}
+	Raw                  []byte
+	ReplicationRowsEvent *replication.RowsEvent
 }
 
 type PosRequest struct {

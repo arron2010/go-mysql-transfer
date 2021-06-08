@@ -99,7 +99,7 @@ func (s *RedisEndpoint) pipe() redis.Pipeliner {
 	return pipe
 }
 
-func (s *RedisEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
+func (s *RedisEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest, ruleMap *global.RuleMap) error {
 	pipe := s.pipe()
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)

@@ -148,7 +148,11 @@ func RuleDeepClone(res *Rule) (*Rule, error) {
 }
 
 func RuleKey(schema string, table string) string {
-	return strings.ToLower(schema + ":" + table)
+	return schema + "/" + table
+}
+
+func BuildRootPath(root string, path string) string {
+	return "/" + root + "/" + path
 }
 
 func AddRuleIns(ruleKey string, r *Rule) {

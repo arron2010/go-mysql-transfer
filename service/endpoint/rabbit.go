@@ -104,7 +104,7 @@ func (s *RabbitEndpoint) mergeQueue(name string) {
 	s.queues[name] = true
 }
 
-func (s *RabbitEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
+func (s *RabbitEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest, ruleMap *global.RuleMap) error {
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)
 		if rule.TableColumnSize != len(row.Row) {

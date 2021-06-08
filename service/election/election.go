@@ -26,12 +26,15 @@ type Service interface {
 	IsLeader() bool
 	Leader() string
 	Nodes() []string
+	IsCluster() bool
 }
 
 func NewElection(_informCh chan bool) Service {
+
 	if global.Cfg().IsZk() {
 		return newZkElection(_informCh)
 	} else {
+
 		return newEtcdElection(_informCh)
 	}
 }

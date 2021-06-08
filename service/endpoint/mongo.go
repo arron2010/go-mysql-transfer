@@ -122,7 +122,7 @@ func (s *MongoEndpoint) collection(key cKey) *mongo.Collection {
 	return c
 }
 
-func (s *MongoEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest) error {
+func (s *MongoEndpoint) Consume(serverName string, from mysql.Position, rows []*model.RowRequest, ruleMap *global.RuleMap) error {
 	models := make(map[cKey][]mongo.WriteModel, 0)
 	for _, row := range rows {
 		rule, _ := global.RuleIns(row.RuleKey)

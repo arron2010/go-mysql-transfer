@@ -42,7 +42,7 @@ const defaultDateFormatter = "2006-01-02"
 type Endpoint interface {
 	Connect() error
 	Ping() error
-	Consume(string, mysql.Position, []*model.RowRequest) error
+	Consume(string, mysql.Position, []*model.RowRequest, *global.RuleMap) error
 	Stock([]*model.RowRequest) int64
 	Close()
 }

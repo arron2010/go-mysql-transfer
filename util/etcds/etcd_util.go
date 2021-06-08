@@ -38,7 +38,7 @@ func CreateIfNecessary(key, val string, ops clientv3.KV, opts ...clientv3.OpOpti
 	defer cancel()
 
 	_, err := ops.Txn(ctx).If(
-		clientv3.Compare(clientv3.ModRevision(key), "=", 0),
+		clientv3.Compare(clientv3.ModRevision(key), ">", 0),
 	).Then(
 		clientv3.OpPut(key, val, opts...),
 	).Commit()
