@@ -108,10 +108,7 @@ func publish(reqObj interface{}) {
 			logs.Errorf("数据传递时，序列化错误:%s %s %v", topic, req.rows[i].Action, req.rows[i].Raw)
 			break
 		}
-		//logs.Infof("消息大小:%d",len(buf))
 
-		//r,_ :=ev.DecodeRows(req.rows[i].Raw,ev.Table,ev.ColumnBitmap1)
-		//fmt.Println(r)
 		err = req.mq.mqClient.Publish(uint64(req.rows[i].Timestamp), topic, buf)
 		if err != nil {
 			logs.Errorf("数据传递时，订阅消息错误:%s %s %v", topic, req.rows[i].Action, req.rows[i].Row)
@@ -133,29 +130,24 @@ func buildMessage(serverName string, row *model.RowRequest, ruleMap *global.Rule
 	bufRow.DB = dbInfo[0]
 	bufRow.Table = dbInfo[1]
 	bufRow.Timestamp = uint64(row.Timestamp)
-	rule, ok := ruleMap.RuleIns(row.RuleKey)
-	if ok {
-		tbl := rule.TableInfo
-		buildPKColumns(bufRow, tbl.PKColumns)
-		buildColumns(bufRow, tbl.Columns)
-	}
-	if len(row.Raw) > 0 {
-		buildColumnValue(bufRow, row)
-	}
+
 	bufRow.Val = row.Raw
 	bufRow.ColumnMeta = collections.Uint16ToUInt32(ev.Table.ColumnMeta)
 	bufRow.ColumnType = ev.Table.ColumnType
 	bufRow.NeedBitmap2 = boolutil.BoolToInt(ev.NeedBitmap2)
 	bufRow.ColumnBitmap1 = ev.ColumnBitmap1
 	bufRow.ColumnBitmap2 = ev.ColumnBitmap2
+	bufRow.ColumnCount = uint32(ev.ColumnCount)
 
-	//r,_ := encoding.DecodeRows(row.Raw,ev.ColumnCount,ev.ColumnBitmap1,ev.ColumnBitmap2,
-	//	ev.Table.ColumnType,bufRow.ColumnMeta,ev.NeedBitmap2)
+	//needBitmap2 := false
+	//if bufRow.NeedBitmap2 > 0 {
+	//	needBitmap2 = true
+	//}
+	//r, _ := encoding.DecodeRows(bufRow.Val, uint64(len(bufRow.Columns)), bufRow.ColumnBitmap1, bufRow.ColumnBitmap2,
+	//	bufRow.ColumnType, bufRow.ColumnMeta, needBitmap2)
+	//
 	//fmt.Println(r)
 
-	//if len(row.Old) > 0 {
-	//	bufRow.OldValues = buildColumnValue(bufRow, row.Old)
-	//}
 	buf, err = proto2.Marshal(bufRow)
 	return buf, err
 }
@@ -167,36 +159,25 @@ func buildPKColumns(bufRow *proto.Row, cols []int) {
 	}
 }
 
-func buildColumns(bufRow *proto.Row, cols []schema.TableColumn) {
-	bufRow.Columns = make([]*proto.ColumnInfo, 0, len(cols))
-	for i := 0; i < len(cols); i++ {
-		bufRow.Columns = append(bufRow.Columns, &proto.ColumnInfo{
-			Name:       cols[i].Name,
-			Type:       uint32(cols[i].Type),
-			Collation:  cols[i].Collation,
-			RawType:    cols[i].RawType,
-			IsAuto:     boolutil.BoolToInt(cols[i].IsAuto),
-			IsUnsigned: boolutil.BoolToInt(cols[i].IsUnsigned),
-			IsVirtual:  boolutil.BoolToInt(cols[i].IsVirtual),
-			FixedSize:  uint32(cols[i].FixedSize),
-			MaxSize:    uint32(cols[i].MaxSize),
-		})
-	}
-}
+//func buildColumns(bufRow *proto.Row, cols []schema.TableColumn) {
+//	bufRow.Columns = make([]*proto.ColumnInfo, 0, len(cols))
+//	for i := 0; i < len(cols); i++ {
+//		bufRow.Columns = append(bufRow.Columns, &proto.ColumnInfo{
+//			Name:       cols[i].Name,
+//			Type:       uint32(cols[i].Type),
+//			Collation:  cols[i].Collation,
+//			RawType:    cols[i].RawType,
+//			IsAuto:     boolutil.BoolToInt(cols[i].IsAuto),
+//			IsUnsigned: boolutil.BoolToInt(cols[i].IsUnsigned),
+//			IsVirtual:  boolutil.BoolToInt(cols[i].IsVirtual),
+//			FixedSize:  uint32(cols[i].FixedSize),
+//			MaxSize:    uint32(cols[i].MaxSize),
+//		})
+//	}
+//}
 
 func buildColumnValue(bufRow *proto.Row, row *model.RowRequest) {
 	bufRow.Val = row.Raw
-
-	//var colValue *proto.ColumnValue
-	//if len(bufRow.Columns) != len(values) {
-	//	return nil
-	//}
-	//columnValues := make([]*proto.ColumnValue, 0, len(values))
-	//for i := 0; i < len(values); i++ {
-	//	colValue = createColumnValue(bufRow.Columns[i], values[i])
-	//	columnValues = append(columnValues, colValue)
-	//}
-	//return columnValues
 }
 
 func createColumnValue(col *proto.ColumnInfo, value interface{}) *proto.ColumnValue {
