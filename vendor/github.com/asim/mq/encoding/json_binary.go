@@ -5,8 +5,8 @@ import (
 	"math"
 
 	"github.com/pingcap/errors"
-	"github.com/siddontang/go/hack"
 	_ "github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go/hack"
 )
 
 const (
@@ -66,7 +66,6 @@ func jsonbGetValueEntrySize(isSmall bool) int {
 
 	return jsonbValueEntrySizeLarge
 }
-
 
 type jsonBinaryDecoder struct {
 	useDecimal      bool

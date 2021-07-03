@@ -55,6 +55,7 @@ type TransferService struct {
 	ruleConfigs []*global.Rule
 	ruleMap     *global.RuleMap
 	Name        string
+	CurrentPos  mysql.Position
 }
 
 func newTransferService(config *global.ServerConfig) *TransferService {
@@ -88,6 +89,7 @@ func (s *TransferService) initialize() error {
 	}
 
 	//暂时不考虑dump情况
+
 	//s.addDumpDatabaseOrTable()
 
 	// endpoint
@@ -114,10 +116,10 @@ func (s *TransferService) initialize() error {
 }
 
 func (s *TransferService) run() error {
-	current, err := s.Position()
-	if err != nil {
-		return err
-	}
+	//current, err := s.Position()
+	//if err != nil {
+	//	return err
+	//}
 
 	s.wg.Add(1)
 	go func(p mysql.Position) {
@@ -136,7 +138,7 @@ func (s *TransferService) run() error {
 		s.canalEnable.Store(false)
 		s.canal = nil
 		s.wg.Done()
-	}(current)
+	}(s.CurrentPos)
 
 	// canal未提供回调，停留一秒，确保RunFrom启动成功
 	time.Sleep(time.Second)
@@ -148,7 +150,10 @@ func (s *TransferService) StartUp() {
 	defer s.lockOfCanal.Unlock()
 
 	if s.firstsStart.Load() {
+		//	s.canal.AddDumpDatabases("eseap2")
+		//s.canal.Dump()
 		s.canalHandler = newHandler(s)
+
 		s.canal.SetEventHandler(s.canalHandler)
 		s.canalHandler.startListener()
 		s.firstsStart.Store(false)
@@ -165,7 +170,9 @@ func (s *TransferService) restart() {
 	}
 
 	s.createCanal()
-	s.addDumpDatabaseOrTable()
+
+	//	s.canal.AddDumpDatabases("eseap2")
+	//s.addDumpDatabaseOrTable()
 	s.canalHandler = newHandler(s)
 	s.canal.SetEventHandler(s.canalHandler)
 	s.canalHandler.startListener()
@@ -216,6 +223,7 @@ func (s *TransferService) createCanal() error {
 	}
 	var err error
 	s.canal, err = canal.NewCanal(s.canalCfg)
+
 	return errors.Trace(err)
 }
 
@@ -227,9 +235,6 @@ func (s *TransferService) completeRules() error {
 		}
 		tbl := regexp.QuoteMeta(rc.Table)
 		if tbl != rc.Table { //通配符
-			//if _, ok := wildcards[global.RuleKey(rc.Schema, rc.Schema)]; ok {
-			//	return errors.Errorf("duplicate wildcard table defined for %s.%s", rc.Schema, rc.Table)
-			//}
 
 			tableName := rc.Table
 			if rc.Table == "*" {

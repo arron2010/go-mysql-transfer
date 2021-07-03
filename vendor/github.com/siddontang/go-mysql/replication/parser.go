@@ -219,7 +219,7 @@ func (p *BinlogParser) parseHeader(data []byte) (*EventHeader, error) {
 
 func (p *BinlogParser) parseEvent(h *EventHeader, data []byte, rawData []byte) (Event, error) {
 	var e Event
-
+	//fmt.Println("BinlogParser-->parseEvent-->222-->",h.EventType.String())
 	if h.EventType == FORMAT_DESCRIPTION_EVENT {
 		p.format = &FormatDescriptionEvent{}
 		e = p.format
@@ -365,7 +365,7 @@ func (p *BinlogParser) newRowsEvent(h *EventHeader) *RowsEvent {
 	} else {
 		e.tableIDSize = 6
 	}
-	
+
 	e.needBitmap2 = false
 	e.tables = p.tables
 	e.parseTime = p.parseTime

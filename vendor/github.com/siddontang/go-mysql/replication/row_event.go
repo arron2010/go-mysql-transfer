@@ -854,8 +854,7 @@ type RowsEvent struct {
 	timestampStringLocation *time.Location
 	useDecimal              bool
 	ignoreJSONDecodeErr     bool
-	Raw []byte
-
+	Raw                     []byte
 }
 
 //用来标记是否需要解码
@@ -919,10 +918,10 @@ func (e *RowsEvent) Decode(data []byte) error {
 	}
 
 	//arron added 公开访问范围
-	e.NeedBitmap2= e.needBitmap2
+	e.NeedBitmap2 = e.needBitmap2
 	e.Raw = data[pos:]
 
-	if needDecode{
+	if needDecode {
 		e.Rows = make([][]interface{}, 0, rowsLen)
 		for pos < len(data) {
 			if n, err = e.decodeRows(data[pos:], e.Table, e.ColumnBitmap1); err != nil {
@@ -946,8 +945,8 @@ func isBitSet(bitmap []byte, i int) bool {
 	return bitmap[i>>3]&(1<<(uint(i)&7)) > 0
 }
 
-func (e *RowsEvent)DecodeRows(data []byte, table *TableMapEvent, bitmap []byte)(int, error){
-	return e.decodeRows(data,table,bitmap)
+func (e *RowsEvent) DecodeRows(data []byte, table *TableMapEvent, bitmap []byte) (int, error) {
+	return e.decodeRows(data, table, bitmap)
 }
 func (e *RowsEvent) decodeRows(data []byte, table *TableMapEvent, bitmap []byte) (int, error) {
 	row := make([]interface{}, e.ColumnCount)

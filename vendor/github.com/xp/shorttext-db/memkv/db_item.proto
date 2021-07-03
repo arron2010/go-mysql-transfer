@@ -1,0 +1,30 @@
+syntax = "proto3";
+package memkv;
+
+message DBItem{
+    bytes  Key  = 1;
+    bytes  RawKey =2;
+    bytes  Val  = 3;
+    uint32 ValueType =4;
+    uint64 StartTS =5;
+    uint64 CommitTS=6;
+    uint32 Op =7;
+    uint64 Ttl=8;
+    uint64 ForUpdateTS=9;
+    uint64 TxnSize =10;
+    uint64 MinCommitTS=11;
+}
+
+
+message DBQueryParam{
+    bytes  StartKey  = 1;
+    bytes  EndKey  = 2;
+    uint64 Ts =3;
+    uint32 Limit =4;
+    uint32 Desc =5;
+}
+
+message DBItems{
+    repeated DBItem Items =1;
+}
+

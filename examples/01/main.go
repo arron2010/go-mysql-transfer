@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/mysql"
 	"os"
 	"os/signal"
 	"syscall"
@@ -36,22 +37,29 @@ func onServerTest() {
 	cfg.Addr = "127.0.0.1:3306"
 	cfg.User = "root"
 	cfg.Password = "12345"
-
+	cfg.IncludeTableRegex = []string{"eseap\\.t_user"}
 	// We only care table canal_test in test db
-	cfg.Dump.TableDB = "eseap"
+	//cfg.Dump.TableDB = "eseap"
 	//cfg.Dump.Databases=[]string{"eseap"}
-	cfg.Dump.Tables = []string{"t_user"}
+	//cfg.Dump.Tables = []string{"t_user"}
 
 	c, err := canal.NewCanal(cfg)
+	c.AddDumpDatabases("eseap")
 	if err != nil {
 		fmt.Println("onServerTest-->", err)
 	}
-
+	//err =c.Dump()
+	//if err != nil {
+	//	fmt.Println("Dump-->", err)
+	//}
 	// Register a handler to handle RowsEvent
 	c.SetEventHandler(&MyEventHandler{})
-
+	pos := mysql.Position{Name: "", Pos: 1}
 	// Start canal
-	c.Run()
+	err = c.RunFrom(pos)
+	if err != nil {
+		fmt.Println("error------------>", err)
+	}
 }
 func main() {
 	onServerTest()

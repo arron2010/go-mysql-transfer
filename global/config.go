@@ -67,6 +67,8 @@ type Config struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"pass"`
 	Charset  string `yaml:"charset"`
+	LogLevel string `yaml:"log_level"`
+	Peers    string `yaml:"peers"`
 
 	ServerConfigs []*ServerConfig `yaml:"servers"` // 监听服务器列表
 
@@ -154,6 +156,7 @@ type ServerConfig struct {
 	SlaveID     uint32  `yaml:"server_slave_id"`
 	Position    string  `yaml:"db_file_position"`
 	RuleConfigs []*Rule `yaml:"rule"`
+	Path        string
 }
 
 func initConfig(fileName string) error {
@@ -209,6 +212,12 @@ func initConfig(fileName string) error {
 	}
 
 	_config = &c
+	dao := NewConfigDAO(_config.Addr, _config.User, _config.Password, "utf8")
+	servers, err := dao.CreateServerConfig()
+	if err != nil {
+		return err
+	}
+	_config.ServerConfigs = servers
 
 	return nil
 }
@@ -283,9 +292,9 @@ func checkConfig(c *Config) error {
 		c.Maxprocs = runtime.NumCPU() * 2
 	}
 
-	if c.RuleConfigs == nil {
-		return errors.Errorf("empty rules not allowed")
-	}
+	//if c.RuleConfigs == nil {
+	//	return errors.Errorf("empty rules not allowed")
+	//}
 
 	return nil
 }

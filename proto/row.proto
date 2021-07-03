@@ -23,7 +23,7 @@ message Row{
 	string DB = 2;
 	string Table  = 3;
 	bytes Val = 4;
-	repeated ColumnInfo Columns = 5;
+	uint32  ColumnCount = 5;
 	repeated uint32 PKColumns = 6;
 	string Action = 7;
 	uint64 Timestamp = 8;

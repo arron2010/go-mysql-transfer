@@ -3,7 +3,6 @@ package storage
 import (
 	"encoding/json"
 	"github.com/siddontang/go-mysql/mysql"
-
 	"go-mysql-transfer/global"
 	"go-mysql-transfer/util/etcds"
 )
@@ -16,22 +15,27 @@ func (s *etcdPositionStorageEx) appendName(name string) string {
 }
 func (s *etcdPositionStorageEx) Initialize() error {
 
-	for i := 0; i < len(global.Cfg().ServerConfigs); i++ {
-		serverConfig := global.Cfg().ServerConfigs[i]
-		//positionInfo := strings.Split(serverConfig.Position,".")
-		data, err := json.Marshal(mysql.Position{
-			Name: serverConfig.Position,
-			Pos:  1,
-		})
-		if err != nil {
-			return err
-		}
-
-		err = etcds.CreateIfNecessary(s.appendName(serverConfig.Name), string(data), _etcdOps)
-		if err != nil {
-			return err
-		}
-	}
+	//for i := 0; i < len(global.Cfg().ServerConfigs); i++ {
+	//	serverConfig := global.Cfg().ServerConfigs[i]
+	//	//positionInfo := strings.Split(serverConfig.Position,".")
+	//	helper := global.NewMySQLHelper(serverConfig)
+	//	name,pos, err := helper.GetLastBinlog()
+	//	if err != nil{
+	//		return err
+	//	}
+	//	data, err := json.Marshal(mysql.Position{
+	//		Name: name,
+	//		Pos:  pos,
+	//	})
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	err = etcds.UpdateOrCreate(s.appendName(serverConfig.Name), string(data), _etcdOps)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 	return nil
 }
 

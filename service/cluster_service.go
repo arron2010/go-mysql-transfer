@@ -19,6 +19,7 @@ package service
 
 import (
 	"github.com/juju/errors"
+	"github.com/siddontang/go-mysql/mysql"
 	"go-mysql-transfer/global"
 	"go-mysql-transfer/metrics"
 	"go-mysql-transfer/service/election"
@@ -57,7 +58,14 @@ func newClusterService(config *global.Config) (*ClusterService, error) {
 	}
 
 	for i := 0; i < len(config.ServerConfigs); i++ {
-		t := newTransferService(config.ServerConfigs[i])
+		serverConfig := config.ServerConfigs[i]
+		helper := global.NewMySQLHelper(serverConfig)
+		name, pos, err := helper.GetLastBinlog()
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		t := newTransferService(serverConfig)
+		t.CurrentPos = mysql.Position{Name: name, Pos: pos}
 		t.positionDao = positionDao
 		clusterService.transferServices = append(clusterService.transferServices, t)
 		err = t.initialize()
@@ -91,7 +99,7 @@ func (s *ClusterService) startElectListener() {
 		for {
 			select {
 			case selected := <-s.electionSignal:
-				global.PrintEx("startElectListener-->selected-->", selected)
+				//global.PrintEx("startElectListener-->selected-->", selected)
 				global.SetLeaderNode(s.electionService.Leader())
 				global.SetLeaderFlag(selected)
 				if selected {

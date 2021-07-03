@@ -19,6 +19,7 @@ package etcds
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/juju/errors"
@@ -42,8 +43,9 @@ func CreateIfNecessary(key, val string, ops clientv3.KV, opts ...clientv3.OpOpti
 	).Then(
 		clientv3.OpPut(key, val, opts...),
 	).Commit()
-
+	fmt.Println("CreateIfNecessary-->", val, "  key-->", key, " key length-->", len(key))
 	if err != nil {
+
 		return errors.Trace(err)
 	}
 
@@ -59,6 +61,7 @@ func Get(key string, ops clientv3.KV) ([]byte, int64, error) {
 	defer cancel()
 
 	resp, err := ops.Get(ctx, key)
+	fmt.Println("etcd_util-->", key, "resp.Kvs-->", len(resp.Kvs), " key length-->", len(key))
 	if err != nil {
 		return nil, -1, errors.Trace(err)
 	}

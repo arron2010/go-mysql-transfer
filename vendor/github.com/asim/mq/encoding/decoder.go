@@ -8,6 +8,7 @@ import (
 	"github.com/pingcap/errors"
 	"github.com/shopspring/decimal"
 	"github.com/siddontang/go/hack"
+	//proto2 "github.com/wj596/go-mysql-transfer/proto"
 	"math"
 	"strconv"
 	"time"
@@ -56,40 +57,51 @@ func isBitSet(bitmap []byte, i int) bool {
 	return bitmap[i>>3]&(1<<(uint(i)&7)) > 0
 }
 
+//func DecodeProtoRow(row *proto2.Row) ([][]interface{}, error) {
+//	needBitmap2 := false
+//	if row.NeedBitmap2 > 0 {
+//		needBitmap2 = true
+//	}
+//	r, err := DecodeRows(row.Val,
+//		uint64(len(row.Columns)), row.ColumnBitmap1, row.ColumnBitmap2,
+//		row.ColumnType, row.ColumnMeta, needBitmap2,
+//	)
+//	return r, err
+//}
+
 func DecodeRows(data []byte,
-	columnCount uint64, columnBitmap1 []byte,	columnBitmap2 []byte,columnType  []byte, columnMeta  []uint32,needBitmap2 bool) ([][]interface{}, error) {
+	columnCount uint64, columnBitmap1 []byte, columnBitmap2 []byte,
+	columnType []byte, columnMeta []uint32, needBitmap2 bool) ([][]interface{}, error) {
 	rows := make([][]interface{}, 0, int(columnCount))
-	pos :=0
+	pos := 0
 	n := 0
 	var err error
 	var row []interface{}
 
 	for pos < len(data) {
-		n,row,err = 	decodeRows(data,columnCount,columnBitmap1,columnType,columnMeta,
-			false,true,false,nil)
-		if err != nil{
-			return nil,errors.Trace(err)
+		n, row, err = decodeRows(data[pos:], columnCount, columnBitmap1, columnType, columnMeta,
+			false, true, false, nil)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+
+		if needBitmap2 {
+			n, row, err = decodeRows(data[pos:], columnCount, columnBitmap2, columnType, columnMeta,
+				false, true, false, nil)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
 		}
 		pos += n
-		rows = append(rows,row)
-
-		if needBitmap2{
-			n,row,err = 	decodeRows(data,columnCount,columnBitmap2,columnType,columnMeta,
-				false,true,false,nil)
-			if err != nil{
-				return nil,errors.Trace(err)
-			}
-			pos += n
-			rows = append(rows,row)
-		}
+		rows = append(rows, row)
 	}
-	return rows,nil
+	return rows, nil
 }
 
-func  decodeRows(data []byte,
-	columnCount uint64, bitmap []byte,	columnType  []byte, columnMeta  []uint32,
+func decodeRows(data []byte,
+	columnCount uint64, bitmap []byte, columnType []byte, columnMeta []uint32,
 	useDecimal bool,
-	ignoreJSONDecodeErr bool,parseTime bool,timestampStringLocation *time.Location) (int,[]interface{}, error) {
+	ignoreJSONDecodeErr bool, parseTime bool, timestampStringLocation *time.Location) (int, []interface{}, error) {
 	row := make([]interface{}, columnCount)
 
 	pos := 0
@@ -123,20 +135,19 @@ func  decodeRows(data []byte,
 			continue
 		}
 
-		row[i], n, err = decodeValue(data[pos:], columnType[i], uint16(columnMeta[i]),useDecimal,ignoreJSONDecodeErr,parseTime,timestampStringLocation)
+		row[i], n, err = decodeValue(data[pos:], columnType[i], uint16(columnMeta[i]), useDecimal, ignoreJSONDecodeErr, parseTime, timestampStringLocation)
 
 		if err != nil {
-			return 0,nil, err
+			return 0, nil, err
 		}
 		pos += n
 	}
 
-	return pos,row, nil
+	return pos, row, nil
 }
 
-
-func  decodeValue(data []byte, tp byte, meta uint16,useDecimal bool,
-	ignoreJSONDecodeErr bool,parseTime bool,timestampStringLocation *time.Location) (v interface{}, n int, err error) {
+func decodeValue(data []byte, tp byte, meta uint16, useDecimal bool,
+	ignoreJSONDecodeErr bool, parseTime bool, timestampStringLocation *time.Location) (v interface{}, n int, err error) {
 	var length int = 0
 
 	if tp == MYSQL_TYPE_STRING {
@@ -200,11 +211,11 @@ func  decodeValue(data []byte, tp byte, meta uint16,useDecimal bool,
 				Time:                    time.Unix(int64(t), 0),
 				Dec:                     0,
 				timestampStringLocation: timestampStringLocation,
-			},parseTime)
+			}, parseTime)
 		}
 	case MYSQL_TYPE_TIMESTAMP2:
 		v, n, err = decodeTimestamp2(data, meta, timestampStringLocation)
-		v = parseFracTime(v,parseTime)
+		v = parseFracTime(v, parseTime)
 	case MYSQL_TYPE_DATETIME:
 		n = 8
 		i64 := binary.LittleEndian.Uint64(data)
@@ -225,11 +236,11 @@ func  decodeValue(data []byte, tp byte, meta uint16,useDecimal bool,
 					time.UTC,
 				),
 				Dec: 0,
-			},parseTime)
+			}, parseTime)
 		}
 	case MYSQL_TYPE_DATETIME2:
 		v, n, err = decodeDatetime2(data, meta)
-		v = parseFracTime(v,parseTime)
+		v = parseFracTime(v, parseTime)
 	case MYSQL_TYPE_TIME:
 		n = 3
 		i32 := uint32(FixedLengthInt(data[0:3]))
@@ -290,7 +301,7 @@ func  decodeValue(data []byte, tp byte, meta uint16,useDecimal bool,
 		// Refer: https://github.com/shyiko/mysql-binlog-connector-java/blob/master/src/main/java/com/github/shyiko/mysql/binlog/event/deserialization/AbstractRowsEventDataDeserializer.java#L404
 		length = int(FixedLengthInt(data[0:meta]))
 		n = length + int(meta)
-		v, err = decodeJsonBinary(data[meta:n],useDecimal,ignoreJSONDecodeErr)
+		v, err = decodeJsonBinary(data[meta:n], useDecimal, ignoreJSONDecodeErr)
 	case MYSQL_TYPE_GEOMETRY:
 		// MySQL saves Geometry as Blob in binlog
 		// Seem that the binary format is SRID (4 bytes) + WKB, outer can use
@@ -436,7 +447,6 @@ func decodeTime2(data []byte, dec uint16) (string, int, error) {
 	return fmt.Sprintf("%s%02d:%02d:%02d", sign, hour, minute, second), n, nil
 }
 
-
 func decodeTimestamp2(data []byte, dec uint16, timestampStringLocation *time.Location) (interface{}, int, error) {
 	//get timestamp binary length
 	n := int(4 + (dec+1)/2)
@@ -462,7 +472,7 @@ func decodeTimestamp2(data []byte, dec uint16, timestampStringLocation *time.Loc
 	}, n, nil
 }
 
-func decodeJsonBinary(data []byte,useDecimal bool,ignoreJSONDecodeErr bool) ([]byte, error) {
+func decodeJsonBinary(data []byte, useDecimal bool, ignoreJSONDecodeErr bool) ([]byte, error) {
 	// Sometimes, we can insert a NULL JSON even we set the JSON field as NOT NULL.
 	// If we meet this case, we can return an empty slice.
 	if len(data) == 0 {
@@ -488,6 +498,7 @@ func decodeJsonBinary(data []byte,useDecimal bool,ignoreJSONDecodeErr bool) ([]b
 const digitsPerInteger int = 9
 
 var compressedBytes = []int{0, 1, 1, 2, 2, 3, 3, 4, 4, 4}
+
 func decodeDecimal(data []byte, precision int, decimals int, useDecimal bool) (interface{}, int, error) {
 	//see python mysql replication and https://github.com/jeremycole/mysql_binlog
 	integral := (precision - decimals)
@@ -680,8 +691,7 @@ func decodeBlob(data []byte, meta uint16) (v []byte, n int, err error) {
 	return
 }
 
-
-func parseFracTime(t interface{},parseTime bool) interface{} {
+func parseFracTime(t interface{}, parseTime bool) interface{} {
 	v, ok := t.(fracTime)
 	if !ok {
 		return t
@@ -695,7 +705,6 @@ func parseFracTime(t interface{},parseTime bool) interface{} {
 	// return Golang time directly
 	return v.Time
 }
-
 
 func FixedLengthInt(buf []byte) uint64 {
 	var num uint64 = 0
@@ -759,6 +768,3 @@ func BFixedLengthInt(buf []byte) uint64 {
 	}
 	return num
 }
-
-
-

@@ -1,0 +1,9 @@
+syntax = "proto3";
+package filedb;
+
+message SequenceMsg{
+    uint64      Start          = 1;
+    uint64      Next        = 2;
+    string       Name   =3;
+}
+

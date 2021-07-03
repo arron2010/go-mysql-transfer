@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"context"
 	"github.com/asim/mq/go/client"
 	"github.com/asim/mq/go/client/selector"
 	"github.com/asim/mq/proto/grpc/mq"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -199,7 +199,7 @@ func (c *grpcClient) Ping(topic string) (bool, error) {
 	}
 	return pong, grr
 }
-func (c *grpcClient) Publish(weight uint64,topic string, payload []byte) error {
+func (c *grpcClient) Publish(weight uint64, topic string, payload []byte) error {
 	select {
 	case <-c.exit:
 		return errors.New("client closed")

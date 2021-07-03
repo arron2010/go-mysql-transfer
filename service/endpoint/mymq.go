@@ -1,14 +1,15 @@
 package endpoint
 
 import (
+	"errors"
 	"fmt"
+	"github.com/asim/mq/common"
 	"github.com/asim/mq/go/client"
-	mqgrpc "github.com/asim/mq/go/client/grpc"
-	"github.com/asim/mq/go/client/selector"
 	proto2 "github.com/golang/protobuf/proto"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
+	"github.com/xp/shorttext-db/network/proxy"
 	"go-mysql-transfer/global"
 	"go-mysql-transfer/gopool"
 	"go-mysql-transfer/model"
@@ -37,22 +38,33 @@ type mqRequest struct {
 
 type myMQEndpoint struct {
 	mqClient client.Client
-	mqAddrs  []string
+	nodeIds  []uint64
 	//isFirst bool
+	node        *proxy.NodeProxy
 	consumePool *gopool.PoolWithFunc
 }
 
 func newMyMQEndpoint() *myMQEndpoint {
 	once.Do(func() {
 		_myMQ = &myMQEndpoint{}
+		cfg := global.Cfg()
+		peers := strings.Split(cfg.Peers, ",")
+		_myMQ.nodeIds = getNodeIds(len(peers))
+		_myMQ.node = proxy.NewNodeProxy(peers, cfg.LogLevel)
 		//_myMQ.isFirst = true
 	})
 	return _myMQ
 }
-
+func getNodeIds(count int) []uint64 {
+	ids := make([]uint64, 0, count)
+	for i := 2; i <= count; i++ {
+		ids = append(ids, uint64(i))
+	}
+	return ids
+}
 func (mq *myMQEndpoint) Connect() error {
 	config := global.Cfg()
-	mq.mqAddrs = strings.Split(config.MQAddr, ",")
+
 	options := gopool.Options{}
 	options.ExpiryDuration = time.Duration(3) * time.Second
 	options.Nonblocking = false
@@ -63,9 +75,9 @@ func (mq *myMQEndpoint) Connect() error {
 		return err
 	}
 
-	mq.mqClient = mqgrpc.New(client.WithServers(mq.mqAddrs...),
-		client.WithSelector(&selector.Shard{}),
-		client.WithRetries(3))
+	//mq.mqClient = mqgrpc.New(client.WithServers(mq.mqAddrs...),
+	//	client.WithSelector(&selector.Shard{}),
+	//	client.WithRetries(3))
 
 	return nil
 }
@@ -81,9 +93,6 @@ func (mq *myMQEndpoint) Consume(serverName string, position mysql.Position, rows
 	if err != nil {
 		return err
 	}
-	//for _, row := range rows {
-	//	printRow(serverName, row, position)
-	//}
 	return nil
 }
 
@@ -95,25 +104,41 @@ func (mq *myMQEndpoint) Close() {
 	mq.mqClient.Close()
 }
 
+const _sendRetries = 3
+
+func (mq *myMQEndpoint) pub(timestamp uint64, topic string, data []byte) error {
+	index := timestamp % uint64(len(mq.nodeIds))
+	var to uint64
+	for i := 0; i < _sendRetries; i++ {
+		to = mq.nodeIds[int(index)]
+		alive := mq.node.IsAlive(to)
+		if !alive {
+			continue
+		}
+		_, err := mq.node.SendKeyMsg(topic, to, common.OP_PUB, data)
+		return err
+	}
+	return errors.New(fmt.Sprintf("节点【%d 】连接中断", to))
+}
 func publish(reqObj interface{}) {
 	var req *mqRequest
 	req = reqObj.(*mqRequest)
 	l := len(req.rows)
 	for i := 0; i < l; i++ {
-		topic := global.BuildRootPath(req.serverName, req.rows[i].RuleKey)
-
 		ev := req.rows[i].ReplicationRowsEvent
+
+		topic := global.BuildRootPath(req.serverName, req.rows[i].RuleKey)
 		buf, err := buildMessage(req.serverName, req.rows[i], req.ruleMap, ev)
 		if err != nil {
 			logs.Errorf("数据传递时，序列化错误:%s %s %v", topic, req.rows[i].Action, req.rows[i].Raw)
 			break
 		}
 
-		err = req.mq.mqClient.Publish(uint64(req.rows[i].Timestamp), topic, buf)
+		err = req.mq.pub(uint64(req.rows[i].Timestamp), topic, buf)
 		if err != nil {
-			logs.Errorf("数据传递时，订阅消息错误:%s %s %v", topic, req.rows[i].Action, req.rows[i].Row)
+			logs.Errorf("数据传递时，订阅消息错误:%s %s %v", topic, req.rows[i].Action, err)
 		}
-		rowText := fmt.Sprintf("Position:%s Server:%s Action:%s RuleKey:%s  Row Data Size:%v",
+		rowText := fmt.Sprintf("Position:%s Server:%s Action:%s RuleKey:%s  DataSize:%v",
 			req.position.Name, req.serverName, req.rows[i].Action, topic, len(buf))
 		logs.Infof("消息发送>>%s", rowText)
 	}
@@ -158,23 +183,6 @@ func buildPKColumns(bufRow *proto.Row, cols []int) {
 		bufRow.PKColumns = append(bufRow.PKColumns, uint32(cols[i]))
 	}
 }
-
-//func buildColumns(bufRow *proto.Row, cols []schema.TableColumn) {
-//	bufRow.Columns = make([]*proto.ColumnInfo, 0, len(cols))
-//	for i := 0; i < len(cols); i++ {
-//		bufRow.Columns = append(bufRow.Columns, &proto.ColumnInfo{
-//			Name:       cols[i].Name,
-//			Type:       uint32(cols[i].Type),
-//			Collation:  cols[i].Collation,
-//			RawType:    cols[i].RawType,
-//			IsAuto:     boolutil.BoolToInt(cols[i].IsAuto),
-//			IsUnsigned: boolutil.BoolToInt(cols[i].IsUnsigned),
-//			IsVirtual:  boolutil.BoolToInt(cols[i].IsVirtual),
-//			FixedSize:  uint32(cols[i].FixedSize),
-//			MaxSize:    uint32(cols[i].MaxSize),
-//		})
-//	}
-//}
 
 func buildColumnValue(bufRow *proto.Row, row *model.RowRequest) {
 	bufRow.Val = row.Raw

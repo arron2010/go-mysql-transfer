@@ -32,10 +32,6 @@ func Initialize() error {
 
 	if global.Cfg().IsCluster() {
 
-		//_clusterService = &ClusterService{
-		//	electionSignal: make(chan bool, 1),
-		//}
-		//_clusterService.electionService = election.NewElection(_clusterService.electionSignal)
 		_clusterService, err = newClusterService(global.Cfg())
 	} else {
 		transferService := &TransferService{

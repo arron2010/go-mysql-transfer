@@ -211,6 +211,12 @@ func (b *BinlogSyncer) isClosed() bool {
 		return false
 	}
 }
+func (b *BinlogSyncer) RegisterSlave() error {
+	return b.registerSlave()
+}
+func (b *BinlogSyncer) GetConn() *client.Conn {
+	return b.c
+}
 
 func (b *BinlogSyncer) registerSlave() error {
 	if b.c != nil {

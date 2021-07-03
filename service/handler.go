@@ -18,6 +18,7 @@
 package service
 
 import (
+	"github.com/asim/mq/common"
 	"go-mysql-transfer/metrics"
 	"log"
 	"time"
@@ -82,6 +83,11 @@ func (s *handler) OnXID(nextPos mysql.Position) error {
 }
 
 func (s *handler) OnRow(e *canal.RowsEvent) error {
+	//logs.Infof("ServerID--->%d",e.Header.ServerID)
+	//复制程序产生的binlog，不进行处理
+	if e.Header.ServerID > common.MIN_REPLICATION_SLAVE {
+		return nil
+	}
 	ruleKey := global.RuleKey(e.Table.Schema, e.Table.Name)
 	if !s.transferService.ruleInsExist(ruleKey) {
 		return nil
@@ -167,7 +173,7 @@ func (s *handler) startListener() {
 		lastSavedTime := time.Now()
 		requests := make([]*model.RowRequest, 0, bulkSize)
 		var current mysql.Position
-		from, _ := s.transferService.Position()
+		from := s.transferService.CurrentPos
 		for {
 			needFlush := false
 			needSavePos := false
@@ -186,12 +192,12 @@ func (s *handler) startListener() {
 							Pos:  v.Pos,
 						}
 					}
-					global.PrintEx("handler startListener-->model.PosRequest-->166-->", v)
+					//global.PrintEx("handler startListener-->model.PosRequest-->166-->", v)
 
 				case []*model.RowRequest:
 					requests = append(requests, v...)
 					needFlush = int64(len(requests)) >= global.Cfg().BulkSize
-					global.PrintEx("handler startListener-->model.RowRequest-->171-->", v)
+					//global.PrintEx("handler startListener-->model.RowRequest-->171-->", v)
 				}
 			case <-ticker.C:
 				needFlush = true
@@ -212,11 +218,11 @@ func (s *handler) startListener() {
 			}
 			if needSavePos && s.transferService.endpointEnable.Load() {
 				logs.Infof("save position %s %d", current.Name, current.Pos)
-				if err := s.transferService.SavePosition(current); err != nil {
-					logs.Errorf("save sync position %s err %v, close sync", current, err)
-					s.transferService.Close()
-					return
-				}
+				//if err := s.transferService.SavePosition(current); err != nil {
+				//	logs.Errorf("save sync position %s err %v, close sync", current, err)
+				//	s.transferService.Close()
+				//	return
+				//}
 				from = current
 			}
 		}
