@@ -108,10 +108,14 @@ func onClientTest() {
 }
 
 func onClientTest2() {
-	conn, _ := client.Connect("rm-2ze634l8642j077f8.mysql.rds.aliyuncs.com:3306", "uat_paydb", "BJtydic_456", "uat_paydb")
+	conn, err := client.Connect("rm-2ze634l8642j077f8.mysql.rds.aliyuncs.com:3306", "uat_paydb", "BJtydic_456",
+		"uat_paydb")
 	//conn, _ := client.Connect("rm-2zei6e64c1k486wp18o.mysql.rds.aliyuncs.com:3306",
 	//	"admin_test", "nihao123!", "uat_orderdb")
 	//`uat_orderdb` eseap
+	if err != nil {
+		fmt.Println(err)
+	}
 	conn.Ping()
 	id := uint32(rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(9000))
 	// Insert
@@ -129,5 +133,5 @@ func onClientTest2() {
 
 func main() {
 	//onClientTest2()
-	onClientTest()
+	onClientTest2()
 }

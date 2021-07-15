@@ -36,7 +36,7 @@ func (c *ConfigDAO) CreateServerConfig() ([]*ServerConfig, error) {
 
 	m := make(map[string]*ServerConfig)
 
-	rows, err := db.Query(`select t2.id, t2.name_,t2.user_,t2.password_,t2.addr_,t1.path_ FROM t_config_strategy t1,t_config_dbinfo t2 where t1.server_=t2.name_ and t1.deleted_="0"`)
+	rows, err := db.Query(`select t2.id, t2.name_,t2.user_,t2.password_,t2.addr_,t1.path_ FROM t_config_strategy t1,t_config_dbinfo t2 where t1.server_=t2.name_ and t2.deleted_="0" group by t2.id, t2.name_,t2.user_,t2.password_,t2.addr_,t1.path_`)
 
 	servers := make([]*ServerConfig, 0, 8)
 	for rows.Next() {

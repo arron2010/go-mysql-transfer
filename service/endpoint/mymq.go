@@ -140,7 +140,7 @@ func publish(reqObj interface{}) {
 		}
 		rowText := fmt.Sprintf("Position:%s Server:%s Action:%s RuleKey:%s  DataSize:%v",
 			req.position.Name, req.serverName, req.rows[i].Action, topic, len(buf))
-		logs.Infof("消息发送>>%s", rowText)
+		logs.Infof("消息发送:%s", rowText)
 	}
 }
 

@@ -21,6 +21,8 @@ import (
 	"github.com/asim/mq/common"
 	"go-mysql-transfer/metrics"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/juju/errors"
@@ -85,7 +87,10 @@ func (s *handler) OnXID(nextPos mysql.Position) error {
 func (s *handler) OnRow(e *canal.RowsEvent) error {
 	//logs.Infof("ServerID--->%d",e.Header.ServerID)
 	//复制程序产生的binlog，不进行处理
-	if e.Header.ServerID > common.MIN_REPLICATION_SLAVE {
+	if e.Header.ServerID > common.MIN_REPLICATION_SLAVE &&
+		e.Header.ServerID < common.MAX_REPLICATION_SLAVE &&
+		e.Header.ServerID%2 == 0 {
+		logs.Infof("服务ID不满足要求:0x%s", strings.ToUpper(strconv.FormatInt(int64(e.Header.ServerID), 16)))
 		return nil
 	}
 	ruleKey := global.RuleKey(e.Table.Schema, e.Table.Name)
@@ -217,7 +222,7 @@ func (s *handler) startListener() {
 				requests = requests[0:0]
 			}
 			if needSavePos && s.transferService.endpointEnable.Load() {
-				logs.Infof("save position %s %d", current.Name, current.Pos)
+				//logs.Infof("save position %s %d", current.Name, current.Pos)
 				//if err := s.transferService.SavePosition(current); err != nil {
 				//	logs.Errorf("save sync position %s err %v, close sync", current, err)
 				//	s.transferService.Close()
